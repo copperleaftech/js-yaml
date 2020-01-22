@@ -1,4 +1,5 @@
-/* js-yaml 3.12.0 https://github.com/nodeca/js-yaml */(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.jsyaml = f()}})(function(){var define,module,exports;return (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
+-n /* js-yaml 3.13.0 https://github.com/nodeca/js-yaml */
+(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.jsyaml = f()}})(function(){var define,module,exports;return (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
 'use strict';
 
 
@@ -208,16 +209,17 @@ function encodeHex(character) {
 }
 
 function State(options) {
-  this.schema       = options['schema'] || DEFAULT_FULL_SCHEMA;
-  this.indent       = Math.max(1, (options['indent'] || 2));
-  this.skipInvalid  = options['skipInvalid'] || false;
-  this.flowLevel    = (common.isNothing(options['flowLevel']) ? -1 : options['flowLevel']);
-  this.styleMap     = compileStyleMap(this.schema, options['styles'] || null);
-  this.sortKeys     = options['sortKeys'] || false;
-  this.lineWidth    = options['lineWidth'] || 80;
-  this.noRefs       = options['noRefs'] || false;
-  this.noCompatMode = options['noCompatMode'] || false;
-  this.condenseFlow = options['condenseFlow'] || false;
+  this.schema           = options['schema'] || DEFAULT_FULL_SCHEMA;
+  this.indent           = Math.max(1, (options['indent'] || 2));
+  this.skipInvalid      = options['skipInvalid'] || false;
+  this.flowLevel        = (common.isNothing(options['flowLevel']) ? -1 : options['flowLevel']);
+  this.styleMap         = compileStyleMap(this.schema, options['styles'] || null);
+  this.sortKeys         = options['sortKeys'] || false;
+  this.lineWidth        = options['lineWidth'] || 80;
+  this.noRefs           = options['noRefs'] || false;
+  this.noCompatMode     = options['noCompatMode'] || false;
+  this.condenseFlow     = options['condenseFlow'] || false;
+  this.scalarQuoteStyle = options['scalarQuoteStyle'] || null;
 
   this.implicitTypes = this.schema.compiledImplicit;
   this.explicitTypes = this.schema.compiledExplicit;
@@ -349,6 +351,9 @@ var STYLE_PLAIN   = 1,
     STYLE_FOLDED  = 4,
     STYLE_DOUBLE  = 5;
 
+var SCALAR_QUOTE_STYLE_SINGLE = 'single',
+    SCALAR_QUOTE_STYLE_DOUBLE = 'double';
+
 // Determines which scalar styles are possible and returns the preferred style.
 // lineWidth = -1 => no limit.
 // Pre-conditions: str.length > 0.
@@ -427,6 +432,9 @@ function chooseScalarStyle(string, singleLineOnly, indentPerLevel, lineWidth, te
 function writeScalar(state, string, level, iskey) {
   state.dump = (function () {
     if (string.length === 0) {
+      if (state.scalarQuoteStyle === SCALAR_QUOTE_STYLE_DOUBLE) {
+        return '""';
+      }
       return "''";
     }
     if (!state.noCompatMode &&
@@ -453,7 +461,17 @@ function writeScalar(state, string, level, iskey) {
       return testImplicitResolving(state, string);
     }
 
-    switch (chooseScalarStyle(string, singleLineOnly, state.indent, lineWidth, testAmbiguity)) {
+    var scalarStyle = chooseScalarStyle(string, singleLineOnly, state.indent, lineWidth, testAmbiguity);
+
+    if (iskey !== true && (scalarStyle === STYLE_PLAIN || scalarStyle === STYLE_SINGLE)) {
+      if (state.scalarQuoteStyle === SCALAR_QUOTE_STYLE_SINGLE) {
+        scalarStyle = STYLE_SINGLE;
+      } else if (state.scalarQuoteStyle === SCALAR_QUOTE_STYLE_DOUBLE) {
+        scalarStyle = STYLE_DOUBLE;
+      }
+    }
+
+    switch (scalarStyle) {
       case STYLE_PLAIN:
         return string;
       case STYLE_SINGLE:
